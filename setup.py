@@ -37,12 +37,13 @@ classes = """
     Programming Language :: Python :: 3.3
     Programming Language :: Python :: 3.4
     Programming Language :: Python :: Implementation :: CPython
+    Programming Language :: Python :: Implementation :: PyPy
     Operating System :: OS Independent
 """
 classifiers = [s.strip() for s in classes.split('\n') if s]
 
 
-install_requires=get_requirements('default.txt')
+install_requires = get_requirements('default.txt')
 if sys.version_info < (3, 0):
     install_requires.append('futures')
 

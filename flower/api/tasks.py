@@ -3,6 +3,8 @@ from __future__ import absolute_import
 import json
 import logging
 
+from datetime import datetime
+
 from tornado import web
 from tornado.escape import json_decode
 from tornado.web import HTTPError
@@ -51,6 +53,8 @@ class BaseTaskHandler(BaseHandler):
 
 
 class TaskAsyncApply(BaseTaskHandler):
+    DATE_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+
     @web.authenticated
     def post(self, taskname):
         """
@@ -102,11 +106,30 @@ Execute a task
         except KeyError:
             raise HTTPError(404, "Unknown task '%s'" % taskname)
 
+        try:
+            self.normalize_options(options)
+        except ValueError:
+            raise HTTPError(400, 'Invalid option')
+
         result = task.apply_async(args=args, kwargs=kwargs, **options)
         response = {'task-id': result.task_id}
         if self.backend_configured(result):
             response.update(state=result.state)
         self.write(response)
+
+    def normalize_options(self, options):
+        if 'eta' in options:
+            options['eta'] = datetime.strptime(options['eta'],
+                                               self.DATE_FORMAT)
+        if 'countdown' in options:
+            options['countdown'] = float(options['countdown'])
+        if 'expires' in options:
+            expires = options['expires']
+            try:
+                expires = float(expires)
+            except ValueError:
+                expires = datetime.strptime(expires, self.DATE_FORMAT)
+            options['expires'] = expires
 
 
 class TaskSend(BaseTaskHandler):

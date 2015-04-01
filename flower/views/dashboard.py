@@ -9,10 +9,12 @@ except ImportError:
     from ordereddict import OrderedDict
 
 from tornado import web
+from tornado import gen
 from tornado import websocket
 from tornado.ioloop import PeriodicCallback
 
 from ..views import BaseHandler
+from ..api.workers import ListWorkers
 
 
 logger = logging.getLogger(__name__)
@@ -20,10 +22,16 @@ logger = logging.getLogger(__name__)
 
 class DashboardView(BaseHandler):
     @web.authenticated
+    @gen.coroutine
     def get(self):
+        refresh = self.get_argument('refresh', default=False, type=bool)
+
         app = self.application
         events = app.events.state
         broker = app.capp.connection().as_uri()
+
+        if refresh:
+            yield ListWorkers.update_workers(app=app)
 
         workers = dict((k, dict(v)) for (k, v) in events.counter.items())
         for name, info in workers.items():
@@ -84,11 +92,11 @@ class DashboardUpdateHandler(websocket.WebSocketHandler):
 
         for name, worker in sorted(state.workers.items()):
             counter = state.counter[name]
-            started=counter.get('task-started', 0)
-            processed=counter.get('task-received', 0)
-            failed=counter.get('task-failed', 0)
-            succeeded=counter.get('task-succeeded', 0)
-            retried=counter.get('task-retried', 0)
+            started = counter.get('task-started', 0)
+            processed = counter.get('task-received', 0)
+            failed = counter.get('task-failed', 0)
+            succeeded = counter.get('task-succeeded', 0)
+            retried = counter.get('task-retried', 0)
 
             workers[name] = dict(
                 status=worker.alive,
